@@ -22,6 +22,18 @@ deep_lesion:
     random_mask: False
     random_flip: False
     load_mask: True
+brachy_ct:
+  train:
+    batch_size: 2
+    dataset_type: brachy_ct
+    a_dir: "data/brachy_ct/train/artifact"
+    b_dir: "data/brachy_ct/train/no_artifact"
+  test:
+    batch_size: 8
+    dataset_type: brachy_ct
+    a_dir: "data/brachy_ct/test/artifact"
+    b_dir: "data/brachy_ct/test/no_artifact"
+    random_flip: False
 nature_image:
   train:
     batch_size: 2

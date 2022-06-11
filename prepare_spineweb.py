@@ -128,3 +128,6 @@ if __name__ == "__main__":
 
     shutil.rmtree(artifact_dir)
     shutil.rmtree(no_artifact_dir)
+    lst = list()
+    dct = dict()
+    lst.sort(key='key')

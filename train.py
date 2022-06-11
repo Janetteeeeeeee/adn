@@ -39,6 +39,8 @@ if __name__ == "__main__":
             return data['a'], data['b']
         elif dataset_type == "nature_image":
             return data["artifact"], data["no_artifact"]
+        elif dataset_type == "brachy_ct":
+            return data["a"], data["b"]
         else:
             raise ValueError("Invalid dataset type!")
 
