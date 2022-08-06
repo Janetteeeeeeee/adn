@@ -14,8 +14,33 @@ from PIL import Image
 from adn.utils import read_dir, get_connected_components
 from collections import defaultdict
 from torchvision.utils import make_grid
+import xlrd
 
-import cv2
+
+def get_artifact_dict():
+    file_path = './MAR 数据统计-train.xlsx'
+    wb = xlrd.open_workbook(file_path)
+    ws = wb.sheet_by_index(0)
+    artifact_dict = {}
+    for row in range(1, ws.nrows):
+        patient_num = str(int(ws.cell(row, 0).value))
+        artifact_dict[patient_num] = {}
+        artifact_list = []
+        no_artifact_list = []
+        bed_artifact = []
+        for i in range(13):
+            if ws.cell(row, 3*i+2).value != '':
+                start = ws.cell(row, 3*i+2).value
+                end = ws.cell(row, 3*i+2+1).value
+                artifact_list.extend([j for j in range(int(start), int(end) + 1)])
+                pass
+                # print(ws.cell(row, 3*i+2+2))
+        if ws.cell(row, 41).ctype == 2:
+            bed_artifact = [i for i in range(int(ws.cell(row, 41).value), int(ws.cell(row, 42).value) + 1)]
+            pass
+        artifact_dict[patient_num]['bed_artifact'] = bed_artifact
+        artifact_dict[patient_num]['artifact_list'] = artifact_list
+    return artifact_dict
 
 
 def make_thumbnails(images):
@@ -29,7 +54,7 @@ def make_thumbnails(images):
     return image
 
 
-if __name__ == "__main__":
+def split_image():
     config_file = "config/dataset.yaml"
     with open(config_file) as f:
         config = yaml.load(f, Loader=yaml.FullLoader)['brachy_ct']
@@ -37,14 +62,21 @@ if __name__ == "__main__":
     patient_dirs = read_dir(config['raw_dir'], recursive=False)
 
     image_size = config['image_size']
-    if type(image_size) is not list: image_size = [image_size] * 2
+    if type(image_size) is not list:
+        image_size = [image_size] * 2
     thumbnail_size = config['thumbnail_size']
-    if type(thumbnail_size) is not list: thumbnail_size = [thumbnail_size] * 2
+    if type(thumbnail_size) is not list:
+        thumbnail_size = [thumbnail_size] * 2
 
+    artifact_dict = get_artifact_dict()
     for patient_dir in tqdm(patient_dirs):
         patient_name = path.basename(patient_dir)
         if int(patient_name) > 520:
             continue
+        if patient_name not in artifact_dict.keys():
+            continue
+        bed_artifact = artifact_dict[patient_name]['bed_artifact']
+        artifact_list = artifact_dict[patient_name]['artifact_list']
         volume_files = read_dir(patient_dir, predicate=lambda x: x.startswith("CT"), recursive=True)
         # volume_files = [patient_dir]
         for volume_file in volume_files:
@@ -61,18 +93,22 @@ if __name__ == "__main__":
                 image_type = "no_artifact"
 
                 # Check if the image has metal artifacts
-                if image.max() > config["max_hu"][1]:
-                    points = np.array(np.where(image > config["max_hu"][1])).T
-                    points = set(tuple(p) for p in points)
-                    components = get_connected_components(points)
-                    max_area = max(len(c) for c in components)
-
-                    if max_area > config["connected_area"]:
-                        image_type = "artifact"
-                    else:
-                        continue
-                elif image.max() > config["max_hu"][0]:
+                # if image.max() > config["max_hu"][1]:
+                #     points = np.array(np.where(image > config["max_hu"][1])).T
+                #     points = set(tuple(p) for p in points)
+                #     components = get_connected_components(points)
+                #     max_area = max(len(c) for c in components)
+                #
+                #     if max_area > config["connected_area"]:
+                #         image_type = "artifact"
+                #     else:
+                #         continue
+                # elif image.max() > config["max_hu"][0]:
+                #     continue
+                if index + 1 in bed_artifact:
                     continue
+                elif index + 1 in artifact_list:
+                    image_type = 'artifact'
 
                 output_dir = path.join(config["dataset_dir"], image_type,
                                        "{}_{}".format(patient_name, volume_name))
@@ -141,3 +177,6 @@ if __name__ == "__main__":
     lst = list()
     dct = dict()
     lst.sort(key='key')
+
+if __name__ == "__main__":
+    split_image()
